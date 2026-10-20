@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SORAYOMI 飛翔予測</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body data-mode="balloon">
+<header class="topbar">
+  <div class="brand"><span class="logo">SORAYOMI</span><span class="sub">飛翔・落下予測</span></div>
+  <nav class="modes" role="tablist">
+    <button data-mode="drone" role="tab">ドローン</button>
+    <button data-mode="balloon" role="tab">気球</button>
+    <button data-mode="rocket" role="tab">ロケット</button>
+    <button data-mode="rockoon" role="tab">ロックーン</button>
+  </nav>
+</header>
+
+<div class="app">
+  <aside class="panel" id="panel">
+    <section class="card">
+      <h2>発射地点・日時</h2>
+      <div class="row2">
+        <label>緯度<input id="lat" type="number" step="0.0001" value="42.5000"></label>
+        <label>経度<input id="lon" type="number" step="0.0001" value="143.4500"></label>
+      </div>
+      <div class="search">
+        <input id="addr" type="text" placeholder="地名・住所で検索（例：大樹町）">
+        <button id="btn-addr" class="ghost">検索</button>
+      </div>
+      <p class="hint">地図をクリックしても地点を指定できます。地表標高：<b id="ground-elev">—</b></p>
+      <label class="check"><input id="alt-override" type="checkbox"> 発射高度を指定する（船上・建物など）</label>
+      <label data-req="alt-override">発射高度（海抜 m）<input id="alt" type="number" step="1" value="0"></label>
+      <div class="row2 end">
+        <label>日時（現地時刻）<input id="launch-time" type="datetime-local"></label>
+        <button id="btn-now" class="ghost">今すぐ</button>
+      </div>
+    </section>
+
+    <!-- ドローン -->
+    <section class="card" data-show="drone">
+      <h2>機体と飛行条件</h2>
+      <div class="row2">
+        <label>耐風性能（m/s）<input id="dr-maxwind" type="number" step="0.5" value="10"></label>
+        <label>飛行高度（地上 m）<input id="dr-alt" type="number" step="10" value="100"></label>
+        <label>動作温度 下限（℃）<input id="dr-tmin" type="number" value="-10"></label>
+        <label>動作温度 上限（℃）<input id="dr-tmax" type="number" value="40"></label>
+        <label>中止する降水量（mm/h）<input id="dr-rain" type="number" step="0.1" value="0.2"></label>
+        <label>注意する降水確率（%）<input id="dr-pop" type="number" step="5" value="40"></label>
+        <label>必要な視程（m）<input id="dr-vis" type="number" step="100" value="1000"></label>
+        <label>表示期間<select id="dr-days"><option value="2">2日</option><option value="3" selected>3日</option><option value="7">7日</option></select></label>
+      </div>
+    </section>
+
+    <!-- 気球 -->
+    <section class="card" data-show="balloon">
+      <h2>気球</h2>
+      <label>計算方式
+        <select id="b-model">
+          <option value="latex">物理モデル（浮力・抵抗から上昇速度と破裂高度を計算）</option>
+          <option value="constant">簡易（上昇速度・破裂高度を指定）</option>
+        </select>
+      </label>
+      <div data-req="b-model=latex">
+        <label>気球の種類<select id="b-preset"></select></label>
+        <div class="row2">
+          <label>気球の質量（g）<input id="b-mass" type="number" step="10" value="1200"></label>
+          <label>破裂直径（m）<input id="b-burstd" type="number" step="0.01" value="8.63"></label>
+          <label>抗力係数 Cd<input id="b-cd" type="number" step="0.01" value="0.30"></label>
+          <label>ガス<select id="b-gas"><option value="helium">ヘリウム</option><option value="hydrogen">水素</option></select></label>
+          <label>ガス純度（%）<input id="b-purity" type="number" step="0.5" value="99"></label>
+          <label>充填の指定<select id="b-fillmode">
+            <option value="ascent">目標上昇速度（m/s）</option>
+            <option value="necklift">ネックリフト（kg）</option>
+            <option value="volume">ガス体積（m³）</option>
+          </select></label>
+          <label>充填の値<input id="b-fillval" type="number" step="0.1" value="5"></label>
+        </div>
+        <label>上昇速度の高度変化<select id="b-profile">
+          <option value="constant">地上の速度を保つ（実測に近い・推奨）</option>
+          <option value="physics">浮力と抵抗の理論どおり（上空で速くなる）</option>
+        </select></label>
+      </div>
+      <div class="row2" data-req="b-model=constant">
+        <label>上昇速度（m/s）<input id="b-rate" type="number" step="0.1" value="5"></label>
+        <label>破裂高度（m）<input id="b-burstalt" type="number" step="100" value="30000"></label>
+      </div>
+      <label>ペイロード質量（kg）<input id="b-payload" type="number" step="0.05" value="1.0"></label>
+      <h3>降下</h3>
+      <label>指定方法<select id="b-desc-mode">
+        <option value="chute">パラシュートの寸法から計算</option>
+        <option value="rate">海面での降下速度を指定</option>
+      </select></label>
+      <div class="row2" data-req="b-desc-mode=chute">
+        <label>パラシュート直径（m）<input id="b-chute-d" type="number" step="0.05" value="1.0"></label>
+        <label>パラシュート Cd<input id="b-chute-cd" type="number" step="0.05" value="0.8"></label>
+      </div>
+      <label data-req="b-desc-mode=chute" class="check"><input id="b-remnant" type="checkbox" checked> 破裂した気球の残骸も一緒に落ちる</label>
+      <label data-req="b-desc-mode=rate">降下速度（海面, m/s）<input id="b-desc-rate" type="number" step="0.1" value="5"></label>
+      <details>
+        <summary>ペイロードの3Dモデル（任意）</summary>
+        <p class="hint">STLを読み込むと、ペイロード自体の空気抵抗を降下計算に加えます（平均投影面積×Cd 1.0）。</p>
+        <div class="row2">
+          <label>STLファイル<input id="b-stl" type="file" accept=".stl"></label>
+          <label>単位<select id="b-stl-unit"><option value="0.001">mm</option><option value="0.01">cm</option><option value="1">m</option><option value="0.0254">inch</option></select></label>
+        </div>
+        <p class="hint" id="b-stl-info"></p>
+      </details>
+    </section>
+
+    <!-- ロックーン：気球部分 -->
+    <section class="card" data-show="rockoon">
+      <h2>気球（ロケットを吊り上げる）</h2>
+      <p class="hint">ゼロプレッシャー気球を想定し、一定速度で上昇して点火高度で点火します。</p>
+      <div class="row2">
+        <label>上昇速度（m/s）<input id="ro-rate" type="number" step="0.1" value="5"></label>
+        <label>点火高度（m）<input id="ro-alt" type="number" step="500" value="30000"></label>
+        <label>点火前の浮遊時間（分）<input id="ro-float" type="number" step="5" value="0"></label>
+      </div>
+    </section>
+
+    <!-- ロケット -->
+    <section class="card" data-show="rocket rockoon">
+      <h2>ロケット</h2>
+      <h3>モーター</h3>
+      <label>推力の指定<select id="r-motor-src">
+        <option value="param">平均推力・燃焼時間で指定</option>
+        <option value="eng">推力曲線ファイル（.eng）</option>
+        <option value="sample">サンプル推力曲線</option>
+      </select></label>
+      <div class="row2" data-req="r-motor-src=param">
+        <label>平均推力（N）<input id="r-thrust" type="number" step="10" value="2000"></label>
+        <label>燃焼時間（s）<input id="r-burn" type="number" step="0.1" value="3"></label>
+        <label>推進剤質量（kg）<input id="r-prop" type="number" step="0.01" value="2.5"></label>
+        <label>モーター全質量（kg）<input id="r-motor-mass" type="number" step="0.01" value="4.0"></label>
+      </div>
+      <label data-req="r-motor-src=eng">.engファイル<input id="r-eng" type="file" accept=".eng,.txt"></label>
+      <p class="hint mono" id="motor-info"></p>
+      <label>機体質量（モーター除く, kg）<input id="r-airframe" type="number" step="0.01" value="6.0"></label>
+      <label>ノズル出口面積（cm²・高空での推力増加の計算用、不明なら0）<input id="r-exit" type="number" step="0.5" value="0"></label>
+
+      <h3>空気抵抗</h3>
+      <label>抗力係数の求め方<select id="r-cd-src">
+        <option value="stl">3Dモデル（STL）から推定</option>
+        <option value="manual">Cdを入力（マッハ数による変化は標準形）</option>
+        <option value="csv">Cd-マッハ数表（CSV）を読み込む</option>
+      </select></label>
+      <div class="row2" data-req="r-cd-src=manual,csv">
+        <label>機体直径（mm）<input id="r-diam" type="number" step="1" value="100"></label>
+        <label>機体全長（mm）<input id="r-length" type="number" step="10" value="1500"></label>
+        <label data-req="r-cd-src=manual">亜音速 Cd<input id="r-cd0" type="number" step="0.01" value="0.45"></label>
+      </div>
+      <label data-req="r-cd-src=csv">CSVファイル（マッハ数,Cd）<input id="r-cdcsv" type="file" accept=".csv,.txt"></label>
+      <div data-req="r-cd-src=stl">
+        <div class="row2">
+          <label>STLファイル<input id="r-stl" type="file" accept=".stl"></label>
+          <label>単位<select id="r-stl-unit"><option value="0.001">mm</option><option value="0.01">cm</option><option value="1">m</option><option value="0.0254">inch</option></select></label>
+          <label>機軸<select id="r-stl-axis"><option value="auto">自動（最長方向）</option><option value="x">X</option><option value="y">Y</option><option value="z">Z</option></select></label>
+          <label>後端面積比<input id="r-baseratio" type="number" step="0.05" value="1" title="ボートテールなら1未満"></label>
+        </div>
+        <button id="btn-sample-stl" class="ghost small">サンプル形状を使う</button>
+        <div id="stl-view" class="viewer small-view" hidden></div>
+        <div id="stl-info" class="mono hint"></div>
+      </div>
+
+      <h3>発射</h3>
+      <div class="row2">
+        <label>ランチャー長（m）<input id="r-rail" type="number" step="0.5" value="5"></label>
+        <label>仰角（度）<input id="r-elev" type="number" step="0.5" value="85"></label>
+        <label>方位角（度・北=0, 東=90）<input id="r-azi" type="number" step="1" value="90"></label>
+      </div>
+
+      <h3>回収</h3>
+      <label>方式<select id="r-rec">
+        <option value="dual">二段開傘（ドローグ→メイン）</option>
+        <option value="single">一段開傘</option>
+        <option value="none">なし（弾道落下）</option>
+      </select></label>
+      <div class="row2" data-req="r-rec=single,dual">
+        <label>開傘のきっかけ<select id="r-trig"><option value="apogee">最高点</option><option value="delay">燃焼終了から遅延</option><option value="altitude">降下中に指定高度</option></select></label>
+        <label data-req="r-trig=apogee,delay">遅延（s）<input id="r-delay" type="number" step="0.5" value="1"></label>
+        <label data-req="r-trig=altitude">開傘高度（地上 m）<input id="r-deploy-alt" type="number" step="500" value="5000"></label>
+      </div>
+      <div class="row2" data-req="r-rec=dual">
+        <label>ドローグ直径（m）<input id="r-drogue-d" type="number" step="0.05" value="0.6"></label>
+        <label>ドローグ Cd<input id="r-drogue-cd" type="number" step="0.05" value="0.8"></label>
+      </div>
+      <div class="row2" data-req="r-rec=single,dual">
+        <label>メイン直径（m）<input id="r-main-d" type="number" step="0.05" value="2.0"></label>
+        <label>メイン Cd<input id="r-main-cd" type="number" step="0.05" value="0.8"></label>
+        <label data-req="r-rec=dual">メイン開傘高度（地上 m）<input id="r-main-alt" type="number" step="50" value="300"></label>
+      </div>
+      <label class="check"><input id="r-tumble" type="checkbox"> 最高点の後は機体が横転して落ちる（タンブリング）</label>
+      <details>
+        <summary>詳細設定</summary>
+        <label>風見安定の強さ（Pa·s・小さいほど風上を向きやすい）<input id="r-stiff" type="number" step="5" value="50"></label>
+      </details>
+    </section>
+
+    <!-- 不確かさ -->
+    <section class="card" data-show="balloon rocket rockoon">
+      <h2>ばらつき（モンテカルロ）</h2>
+      <div class="row2">
+        <label>試行回数<input id="mc-n" type="number" step="50" min="0" max="2000" value="200"></label>
+        <label>乱数の種<input id="mc-seed" type="number" step="1" value="1"></label>
+        <label>風の予報誤差（m/s）<input id="mc-wind" type="number" step="0.5" value="1.5"></label>
+        <label>風速比例の誤差（%）<input id="mc-windfrac" type="number" step="1" value="5"></label>
+      </div>
+      <label>機体側のばらつき（倍率）<input id="mc-scale" type="number" step="0.25" value="1"></label>
+      <p class="hint">予報の誤差と、充填量・破裂直径・推力・Cd・発射角などの製作誤差を同時にばらつかせ、落下範囲を確率で示します。風の誤差は打ち上げが1日先になるごとに25%大きくします。</p>
+    </section>
+
+    <div class="runbar">
+      <button id="run" class="primary">予測を実行</button>
+      <div class="progress" hidden><div class="bar"></div></div>
+      <p id="status" class="status" role="status"></p>
+    </div>
+    <div class="io">
+      <button id="btn-save" class="ghost small">設定を保存</button>
+      <label class="ghost small filebtn">設定を読込<input id="cfg-file" type="file" accept=".json" hidden></label>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div id="map"></div>
+    <section class="results">
+      <nav class="tabs" role="tablist">
+        <button data-tab="summary" class="active">概要</button>
+        <button data-tab="charts">グラフ</button>
+        <button data-tab="view3d" data-show="balloon rocket rockoon">3D軌跡</button>
+        <button data-tab="export" data-show="balloon rocket rockoon">データ出力</button>
+        <button data-tab="about">計算方法</button>
+      </nav>
+      <div class="tab" id="tab-summary">
+        <div id="empty" class="empty">条件を入力して「予測を実行」を押してください。</div>
+        <div id="warnings"></div>
+        <div id="summary" class="cards"></div>
+        <div id="drone-out"></div>
+        <div class="tablewrap"><table id="events" class="table"></table></div>
+      </div>
+      <div class="tab" id="tab-charts" hidden>
+        <div class="charts">
+          <div class="chart" data-show="balloon rocket rockoon"><canvas id="ch-alt"></canvas></div>
+          <div class="chart" data-show="balloon rocket rockoon"><canvas id="ch-range"></canvas></div>
+          <div class="chart" data-show="rocket rockoon"><canvas id="ch-speed"></canvas></div>
+          <div class="chart" data-show="balloon rocket rockoon"><canvas id="ch-wind"></canvas></div>
+          <div class="chart" data-show="rocket rockoon"><canvas id="ch-cd"></canvas></div>
+          <div class="chart wide" data-show="drone"><canvas id="ch-drone"></canvas></div>
+        </div>
+      </div>
+      <div class="tab" id="tab-view3d" hidden>
+        <div class="toolbar">
+          <label>高さの強調<select id="v3-exag"><option value="1">×1（実寸）</option><option value="2">×2</option><option value="5">×5</option></select></label>
+          <span class="legend3d"><i style="--c:#e0453a"></i>気球上昇 <i style="--c:#7a52d1"></i>推進 <i style="--c:#2f6fdf"></i>慣性飛行 <i style="--c:#16a3a3"></i>ドローグ <i style="--c:#2e9d55"></i>パラシュート</span>
+        </div>
+        <div id="traj3d" class="viewer"></div>
+      </div>
+      <div class="tab" id="tab-export" hidden>
+        <div class="exports">
+          <button id="ex-csv" class="ghost">軌跡CSV</button>
+          <button id="ex-mc" class="ghost">モンテカルロ落下点CSV</button>
+          <button id="ex-kml" class="ghost">KML（Google Earthで3D表示）</button>
+        </div>
+      </div>
+      <div class="tab prose" id="tab-about" hidden>
+        <h3>気象データ</h3>
+        <p>米国GFS（0.25°格子）の予報を Open-Meteo 経由で取得します。地表〜高度約31km（10hPa）までの28層の風と等圧面高度を、緯度・経度・時刻・高度の4方向に補間して使います。気温は等圧面の厚さから静力学的に求めるため、密度の計算に必要な値（仮温度）に近くなります。31kmより上は米国標準大気（1976）で外挿し、風は31kmの値を使います。</p>
+        <p>まず発射地点の予報で一度計算して飛行範囲を見積もり、その範囲を覆う格子（最大25点）を取り直して再計算します。最後に落下域の詳細な標高（15×15点＋軌跡直下の点）を取得して着地点を決めます。</p>
+        <h3>気球</h3>
+        <p>物理モデルでは、地上の充填量からガスの質量を決め、各高度の気圧・気温で膨らんだ体積から浮力・抗力・上昇速度を求めます。直径が破裂直径に達した高度で破裂し、その後はパラシュートで降下します。理論上は上空ほど上昇速度が速くなりますが、実際のラテックス気球はほぼ一定の速度で上がることが多いため、標準では地上の上昇速度を保つ設定にしています（直径と破裂高度は物理計算のまま）。水平方向は風に乗って移動します。</p>
+        <h3>ロケット・ロックーン</h3>
+        <p>回転する球体地球の上で3自由度の運動方程式をRK4法で積分します。高度による重力変化、コリオリ力、地球の曲率を含みます。推力は推力曲線と、ノズル出口面積から求めた高空での推力増加を使い、質量は消費した力積に比例して減ります。空気抵抗はマッハ数に応じたCdで計算し、機体は動圧に応じて対気速度の方向を向く（風見安定）と仮定します。「タンブリング」を有効にすると、最高点の後は機体が横転して落ちるとみなし、表面積の1/4（平均投影面積）×Cd 1.2 の抵抗を使います。開傘時の負荷は、空気の薄さを考慮した等価対気速度（海面相当）で判断します。</p>
+        <p>3Dモデルからは、全長・胴体径・正面投影面積・表面積・ノーズ長・フィン高さを求め、摩擦抵抗・底面抵抗・ノーズの造波抵抗・フィン前縁抵抗を積み上げてCd-マッハ数表を推定します（精度の目安は±20%）。風洞試験やCFD、OpenRocket・RASAeroで求めた表があれば、CSVで読み込む方が正確です。</p>
+        <h3>ばらつき</h3>
+        <p>風の予報誤差（高度方向に相関を持つ乱数）と機体側の誤差を同時に与えて何百回も計算し、落下点の50%・95%・99%確率楕円とCEP（半数が入る半径）を示します。</p>
+        <h3>限界</h3>
+        <p>姿勢の回転運動（6自由度）、多段式ロケット、局地的な地形風・乱流、気球の過圧や放熱は扱っていません。予測は参考値です。実際の打ち上げでは、航空法に基づく許可・通報や落下区域の安全確保を必ず行ってください。</p>
+      </div>
+    </section>
+  </main>
+</div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
