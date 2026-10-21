@@ -1,0 +1,15 @@
+{
+  "name": "SORAYOMI 飛翔・落下予測",
+  "short_name": "SORAYOMI",
+  "description": "気球・ロケット・ロックーンの軌跡と落下地点、ドローンの飛行可否を気象予報から予測",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#111418",
+  "theme_color": "#2f6fdf",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

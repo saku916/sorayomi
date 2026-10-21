@@ -672,6 +672,9 @@ function init() {
     if (!(t > new Date(Date.now() - 6 * 3600e3))) delete saved['launch-time']; // 古い日時は今に置き換える
     loadForm(saved);
   } else setMode('balloon');
+  // ?mode=drone などのURLで開いたときはそのモードにする（検索やリンクからの入口用）
+  const qm = new URLSearchParams(location.search).get('mode');
+  if (['drone', 'balloon', 'rocket', 'rockoon'].includes(qm)) setMode(qm);
 
   document.querySelectorAll('.modes button').forEach((b) => b.addEventListener('click', () => { setMode(b.dataset.mode); persist(); }));
   document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => selectTab(b.dataset.tab)));

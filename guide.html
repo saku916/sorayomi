@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>気球・ロケットの落下地点予測の使い方と計算方法｜SORAYOMI</title>
+<meta name="description" content="成層圏気球の破裂高度・ネックリフトの計算、モデルロケットやロックーンの最高高度と落下地点のシミュレーション、ドローンの風による飛行判断を、SORAYOMIの使い方とあわせて解説します。">
+<link rel="canonical" href="https://saku916.github.io/sorayomi/guide.html">
+<meta name="theme-color" content="#2f6fdf">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="SORAYOMI">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="気球・ロケットの落下地点予測の使い方と計算方法｜SORAYOMI">
+<meta property="og:description" content="破裂高度・ネックリフト・最高高度・落下範囲の求め方と、ドローンの風による飛行判断を解説。">
+<meta property="og:url" content="https://saku916.github.io/sorayomi/guide.html">
+<meta property="og:image" content="https://saku916.github.io/sorayomi/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Article",
+      "headline": "気球・ロケットの落下地点予測の使い方と計算方法",
+      "inLanguage": "ja",
+      "datePublished": "2026-10-21",
+      "dateModified": "2026-10-21",
+      "image": "https://saku916.github.io/sorayomi/og-image.png",
+      "author": { "@type": "Person", "name": "saku916", "url": "https://github.com/saku916" },
+      "mainEntityOfPage": "https://saku916.github.io/sorayomi/guide.html"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "SORAYOMI", "item": "https://saku916.github.io/sorayomi/" },
+        { "@type": "ListItem", "position": 2, "name": "使い方と計算方法", "item": "https://saku916.github.io/sorayomi/guide.html" }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "気球の落下地点はどのくらい正確に予測できますか？",
+          "acceptedAnswer": { "@type": "Answer", "text": "予報の典型的な誤差をもとにした計算では、放球の前日〜当日なら、落下地点の半数は予測点から飛行距離の5〜10%程度の範囲に入る見込みです（実際の飛行データでの検証はこれからです）。SORAYOMIは予報誤差と機体の誤差を同時にばらつかせて計算し、50%・95%・99%の確率楕円で範囲を示します。" } },
+        { "@type": "Question", "name": "ネックリフトとは何ですか？",
+          "acceptedAnswer": { "@type": "Answer", "text": "ガスを入れた気球の口（ネック）で測る持ち上げる力で、気球自身の重さを差し引いた浮力です。ネックリフトからペイロードの重さを引いた値（自由浮力）が上昇速度を決めます。" } },
+        { "@type": "Question", "name": "ロックーンとは何ですか？",
+          "acceptedAnswer": { "@type": "Answer", "text": "気球（バルーン）でロケットを成層圏まで吊り上げ、空気の薄い上空で点火する打ち上げ方式です。空気抵抗が小さく、地上の発射設備が要らないため、小型ロケットでも宇宙空間（高度100km）に届きやすくなります。" } },
+        { "@type": "Question", "name": "ドローンは風速何メートルまで飛ばせますか？",
+          "acceptedAnswer": { "@type": "Answer", "text": "機体ごとの耐風性能によります。地上より上空の方が風は強く、突風も考える必要があるため、SORAYOMIでは飛行高度の風に突風率をかけた値が耐風性能を超える時間を「中止」、耐風性能の70%を超える時間を「注意」と判定します。" } },
+        { "@type": "Question", "name": "料金や登録は必要ですか？",
+          "acceptedAnswer": { "@type": "Answer", "text": "無料で、登録も不要です。ブラウザでページを開けば使えます。" } }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  body { display: block; }
+  .article { max-width: 780px; margin: 0 auto; padding: 24px 16px 64px; line-height: 1.85; }
+  .article h1 { font-size: 26px; line-height: 1.4; margin: 8px 0 12px; }
+  .article h2 { font-size: 20px; margin: 40px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  .article h3 { font-size: 16px; margin: 24px 0 6px; }
+  .article p, .article li { color: var(--text); }
+  .article a { color: var(--accent); }
+  .article .lead { color: var(--muted); font-size: 15px; }
+  .article .cta { display: inline-block; background: var(--accent); color: var(--accent-ink); padding: 10px 20px; border-radius: 8px; font-weight: 700; text-decoration: none; margin: 8px 8px 0 0; }
+  .article .cta.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .article table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 8px 0 16px; }
+  .article th, .article td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  .article th { color: var(--muted); font-weight: 500; }
+  .article code { font-family: var(--mono); font-size: 13px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+  .crumb { font-size: 13px; color: var(--muted); }
+  .crumb a { color: var(--muted); }
+  .toc { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 18px; }
+  .toc ol { margin: 4px 0; padding-left: 1.3em; }
+  .note { background: var(--warn-bg); color: var(--warn); border-radius: 8px; padding: 10px 14px; }
+  footer.site { text-align: center; color: var(--muted); font-size: 13px; padding: 24px 16px; border-top: 1px solid var(--line); }
+  footer.site a { color: var(--muted); }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a href="./" style="text-decoration:none"><span class="brand"><span class="logo">SORAYOMI</span><span class="sub">飛翔・落下予測</span></span></a>
+  <a class="ghost" href="./" style="text-decoration:none">予測ツールを開く</a>
+</header>
+
+<main class="article">
+  <nav class="crumb" aria-label="パンくずリスト"><a href="./">SORAYOMI</a> › 使い方と計算方法</nav>
+  <h1>気球・ロケットの落下地点予測の使い方と計算方法</h1>
+  <p class="lead">SORAYOMIは、気球・ロケット・ロックーンが「どこまで上がり、どこに落ちるか」を、最新の気象予報から予測する無料のWebツールです。このページでは、使い方と、内部で行っている計算の考え方を説明します。</p>
+  <p><a class="cta" href="./?mode=balloon">気球の落下地点を予測する</a><a class="cta ghost" href="./?mode=rocket">ロケットを計算する</a><a class="cta ghost" href="./?mode=drone">ドローンの飛行判断</a></p>
+
+  <nav class="toc" aria-label="目次">
+    <strong>目次</strong>
+    <ol>
+      <li><a href="#balloon">成層圏気球の破裂高度と落下地点を予測する</a></li>
+      <li><a href="#rocket">ロケットの最高高度と落下地点をシミュレーションする</a></li>
+      <li><a href="#rockoon">ロックーン（気球からのロケット打ち上げ）を計算する</a></li>
+      <li><a href="#drone">ドローンを飛ばせるか風予報で判断する</a></li>
+      <li><a href="#accuracy">予測の精度と落下範囲の見方</a></li>
+      <li><a href="#faq">よくある質問</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="balloon">1. 成層圏気球の破裂高度と落下地点を予測する</h2>
+  <p>ラテックス製の気象観測用気球（Totex・Hwoyeeなど）は、上空で周りの気圧が下がるにつれて膨らみ、メーカーが示す<strong>破裂直径</strong>に達したところで割れます。その後はパラシュートで降りてきます。上昇中も降下中も風に流されるため、落下地点は放球地点から数十〜200km以上離れることがあります。</p>
+  <h3>使い方</h3>
+  <ol>
+    <li>「気球」タブを選び、地図をクリックするか地名で放球地点を指定します</li>
+    <li>放球の日時（現地時刻）を入れます。予報は最大16日先まで使えます</li>
+    <li>気球の種類、ペイロードの重さ、充填量（目標上昇速度・ネックリフト・ガス体積のどれか）、パラシュートの直径を入れます</li>
+    <li>「予測を実行」を押すと、軌跡・破裂高度・落下地点・落下範囲が表示されます</li>
+  </ol>
+  <h3>ネックリフトと上昇速度の関係</h3>
+  <p>気球の口で測る持ち上げる力が<strong>ネックリフト</strong>です。ネックリフトからペイロードの重さを引いた<strong>自由浮力</strong>が、空気抵抗とつり合う速さで気球は上がります。SORAYOMIは「目標上昇速度」を入れると、必要なネックリフトとガス量（m³）を逆算して表示します。たとえば1200gの気球に1kgのペイロードを付けて毎秒5mで上げる場合、ネックリフトは約2.3kg、破裂高度は約33kmになります（標準大気の場合）。</p>
+  <h3>計算の考え方</h3>
+  <ul>
+    <li>地上でのガスの量（質量）は変わらないとし、各高度の気圧・気温から気球の体積と直径を求めます</li>
+    <li>直径が破裂直径に達した高度を破裂高度とします</li>
+    <li>上昇速度は、実際の飛行データに近い「地上の速度を保つ」設定が標準です。理論どおり上空で速くなる設定も選べます</li>
+    <li>降下速度は、パラシュートの直径と抗力係数から、各高度の空気の密度に応じた終端速度で計算します。上空ほど空気が薄いので速く落ちます</li>
+  </ul>
+
+  <h2 id="rocket">2. ロケットの最高高度と落下地点をシミュレーションする</h2>
+  <p>モデルロケットやハイパワーロケットの飛行を、推力曲線と機体の形から計算します。</p>
+  <h3>必要な情報</h3>
+  <table>
+    <tr><th>項目</th><th>入力のしかた</th></tr>
+    <tr><td>推力</td><td>平均推力と燃焼時間、または推力曲線ファイル（RASP形式 <code>.eng</code>。ThrustCurve.orgなどで入手できます）</td></tr>
+    <tr><td>質量</td><td>モーターを除いた機体の質量と、モーターの全質量・推進剤質量</td></tr>
+    <tr><td>空気抵抗</td><td>3Dモデル（STL）から自動推定、Cdを直接入力、またはOpenRocket・RASAeroのCd-マッハ数表（CSV）</td></tr>
+    <tr><td>発射条件</td><td>ランチャーの長さ・仰角・方位</td></tr>
+    <tr><td>回収</td><td>なし／一段開傘／二段開傘（ドローグ→メイン）、開傘のきっかけ（最高点・燃焼後の遅延・指定高度）</td></tr>
+  </table>
+  <h3>3Dモデルから抗力係数を推定する</h3>
+  <p>STLファイルを読み込むと、全長・胴体径・ノーズの長さ・フィンの高さ・正面と側面の投影面積・表面積を自動で測ります。そこから、表面の摩擦抵抗、底面の抵抗、超音速でのノーズの造波抵抗、フィン前縁の抵抗を足し合わせて、マッハ数ごとの抗力係数（Cd）の表を作ります。精度の目安は±20%です。参考として、形状の重心と側面積の中心（簡易的な圧力中心）から安定余裕の目安も表示します。</p>
+  <h3>計算の考え方</h3>
+  <ul>
+    <li>回転する丸い地球の上での運動を計算します。高度による重力の弱まり、コリオリ力、地球の丸みを含みます</li>
+    <li>機体は風上を向こうとする性質（風見安定）を持つとし、横風が強いと風上に向かって飛びます</li>
+    <li>ランチャーを離れる速度が毎秒15mより遅いと警告します</li>
+    <li>開傘時の速度は、空気の薄さを考えた「海面相当の速度」で負荷を判断します</li>
+  </ul>
+
+  <h2 id="rockoon">3. ロックーン（気球からのロケット打ち上げ）を計算する</h2>
+  <p><strong>ロックーン</strong>は、気球でロケットを高度30km前後まで吊り上げ、空気の薄い上空で点火する方式です。空気抵抗がほとんどなく、地上の発射場も要らないため、小さなロケットでも高度100kmの宇宙空間に届きやすくなります。1950年代のアメリカで観測ロケットとして使われ、現在も低コストな宇宙輸送の手段として研究されています。</p>
+  <p>SORAYOMIでは、気球の上昇と流され方 → 点火高度での浮遊 → 点火・燃焼 → 宇宙空間までの弾道飛行 → 再突入 → パラシュート回収までを一続きで計算します。高空ではノズルの外の気圧が低いぶん推力が増えるため、ノズル出口面積を入れるとその効果も含めます。再突入時に機体が横転して落ちる「タンブリング」も選べます。</p>
+
+  <h2 id="drone">4. ドローンを飛ばせるか風予報で判断する</h2>
+  <p>ドローンの飛行で一番の問題になるのは風です。地上で弱い風でも、高度100mでは2倍近く強いことがあります。「ドローン」タブでは、地上10m・80m・120m・180mの予報から飛行高度の風を求め、突風率をかけて1時間ごとに判定します。</p>
+  <table>
+    <tr><th>判定</th><th>条件（標準設定）</th></tr>
+    <tr><td>中止</td><td>突風が耐風性能を超える、1時間に0.2mm以上の降水、雷雨、動作温度の範囲外、視程1km未満</td></tr>
+    <tr><td>注意</td><td>風が耐風性能の70%を超える、突風が80%を超える、降水確率40%以上、低温（バッテリー性能の低下）</td></tr>
+    <tr><td>飛行可</td><td>上のどれにも当てはまらない</td></tr>
+  </table>
+  <p>あわせて、国土地理院の人口集中地区（DID、令和2年）に入っているかを判定します。DID内での飛行には国の許可が必要です。空港周辺・高度150m以上・夜間・目視外などの規制は、国土交通省のドローン情報基盤システム（DIPS）で確認してください。</p>
+
+  <h2 id="accuracy">5. 予測の精度と落下範囲の見方</h2>
+  <p>予報には誤差があり、気球の膨らみ方やロケットの推力にも個体差があります。SORAYOMIは、風の予報誤差（高度によって変わる誤差）と、ガス量・破裂直径・推力・抗力係数・質量・発射角などのばらつきを同時に与えて、標準で200回計算します（モンテカルロ法）。</p>
+  <ul>
+    <li><strong>50%・95%・99%の楕円</strong>：その確率で落下点が入る範囲です。回収計画や落下区域の設定は95%以上の範囲を目安にしてください</li>
+    <li><strong>CEP</strong>：落下点の半数が入る円の半径です</li>
+    <li><strong>海上に落ちる確率</strong>：落下点の標高から判定します</li>
+  </ul>
+  <p>風の誤差は、打ち上げが1日先になるごとに25%大きくしています。予報は数時間ごとに更新されるため、直前にもう一度計算し直すのがおすすめです。</p>
+  <p class="note">予測は参考値です。実際の放球・打ち上げでは、航空法に基づく許可・通報、落下区域の安全確保、関係機関への連絡を必ず行ってください。</p>
+
+  <h2 id="faq">6. よくある質問</h2>
+  <h3>気球の落下地点はどのくらい正確に予測できますか？</h3>
+  <p>予報の典型的な誤差をもとにした計算では、放球の前日〜当日なら、落下地点の半数は予測点から飛行距離の5〜10%程度の範囲に入る見込みです。実際の飛行データでの検証はこれからです。風が強い日ほど流される距離が長く、誤差も大きくなります。</p>
+  <h3>どの気象データを使っていますか？</h3>
+  <p>米国海洋大気庁（NOAA）の全球予報モデルGFS（0.25°格子）を、Open-Meteoを通じて取得しています。地上から高度約31km（10hPa）まで28層の風と等圧面の高さを使い、緯度・経度・時刻・高度の4方向で補間します。31kmより上は米国標準大気で補います。</p>
+  <h3>結果を保存できますか？</h3>
+  <p>「データ出力」タブから、軌跡のCSV、モンテカルロの落下点CSV、Google Earthで立体表示できるKMLを保存できます。入力した条件はブラウザに自動保存され、JSONファイルにも書き出せます。</p>
+  <h3>スマートフォンでも使えますか？</h3>
+  <p>使えます。インストールは不要で、ページを開くだけで動きます。</p>
+  <h3>料金や登録は必要ですか？</h3>
+  <p>無料で、登録も不要です。ソースコードは<a href="https://github.com/saku916/sorayomi">GitHub</a>で公開しています。</p>
+
+  <p><a class="cta" href="./">予測ツールを開く</a></p>
+</main>
+<footer class="site">
+  <a href="./">SORAYOMI</a> ・ <a href="guide.html">使い方と計算方法</a> ・ <a href="https://github.com/saku916/sorayomi">GitHub</a><br>
+  気象データ：Open-Meteo（NOAA GFS）／地図・人口集中地区：国土地理院
+</footer>
+</body>
+</html>

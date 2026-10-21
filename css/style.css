@@ -46,7 +46,7 @@ body {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line);
 }
-.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand { display: flex; align-items: baseline; gap: 10px; margin: 0; font-size: 15px; font-weight: 400; }
 .logo { font-family: var(--mono); font-weight: 600; letter-spacing: .12em; color: var(--accent); }
 .sub { color: var(--muted); font-size: 13px; }
 .modes { display: flex; gap: 4px; background: var(--surface-2); padding: 3px; border-radius: 8px; }
@@ -161,3 +161,9 @@ button { font: inherit; cursor: pointer; }
   .charts { grid-template-columns: 1fr; }
   .runbar { position: static; }
 }
+
+.intro { max-width: 720px; margin: 8px auto; color: var(--muted); text-align: left; }
+.intro p { margin: 0 0 8px; }
+.intro strong { color: var(--text); }
+.intro ul { margin: 0 0 8px; padding-left: 1.2em; }
+.intro a { color: var(--accent); }

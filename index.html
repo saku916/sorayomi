@@ -3,8 +3,53 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SORAYOMI 飛翔予測</title>
+<title>SORAYOMI｜気球・ロケット・ドローンの落下地点予測と風予報（無料）</title>
+<meta name="description" content="気球・ロケット・ロックーンの飛行軌跡と落下地点を、最新の気象予報（GFS）と3Dモデルから予測する無料Webツール。モンテカルロ法で落下範囲を確率表示。ドローンの飛行可否（風・突風・雨・DID）も1時間ごとに判定します。">
+<meta name="keywords" content="落下地点予測,気球 予測,ロケット シミュレーション,ロックーン,ドローン 風予報,成層圏気球,モデルロケット,弾道計算">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="canonical" href="https://saku916.github.io/sorayomi/">
+<meta name="theme-color" content="#2f6fdf">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SORAYOMI">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="SORAYOMI｜気球・ロケット・ドローンの落下地点予測">
+<meta property="og:description" content="最新の気象予報と3Dモデルから、気球・ロケット・ロックーンの軌跡と落下範囲を予測。ドローンの飛行可否判定も。無料・登録不要。">
+<meta property="og:url" content="https://saku916.github.io/sorayomi/">
+<meta property="og:image" content="https://saku916.github.io/sorayomi/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SORAYOMI 飛翔・落下予測：地図上の予測軌跡と落下範囲">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SORAYOMI｜気球・ロケット・ドローンの落下地点予測">
+<meta name="twitter:description" content="最新の気象予報と3Dモデルから、軌跡と落下範囲を予測する無料ツール。">
+<meta name="twitter:image" content="https://saku916.github.io/sorayomi/og-image.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "SORAYOMI 飛翔・落下予測",
+  "url": "https://saku916.github.io/sorayomi/",
+  "description": "気球・ロケット・ロックーンの飛行軌跡と落下地点を、GFS気象予報と3Dモデル、モンテカルロ法で予測する無料Webツール。ドローンの飛行可否判定にも対応。",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Web",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "featureList": ["気球の上昇・破裂・降下の予測", "ロケットの3自由度弾道計算", "3Dモデル（STL）からの抗力係数推定", "ロックーン（気球からのロケット発射）", "モンテカルロ法による落下範囲の確率表示", "ドローンの飛行可否判定と人口集中地区の確認"],
+  "image": "https://saku916.github.io/sorayomi/og-image.png",
+  "author": { "@type": "Person", "name": "saku916", "url": "https://github.com/saku916" }
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://api.open-meteo.com">
+<link rel="preconnect" href="https://cyberjapandata.gsi.go.jp">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="css/style.css">
@@ -14,12 +59,12 @@
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body data-mode="balloon">
 <header class="topbar">
-  <div class="brand"><span class="logo">SORAYOMI</span><span class="sub">飛翔・落下予測</span></div>
+  <h1 class="brand"><span class="logo">SORAYOMI</span><span class="sub">気球・ロケット・ドローンの飛翔・落下予測</span></h1>
   <nav class="modes" role="tablist">
     <button data-mode="drone" role="tab">ドローン</button>
     <button data-mode="balloon" role="tab">気球</button>
@@ -230,6 +275,7 @@
     <div class="io">
       <button id="btn-save" class="ghost small">設定を保存</button>
       <label class="ghost small filebtn">設定を読込<input id="cfg-file" type="file" accept=".json" hidden></label>
+      <a class="ghost small" href="guide.html" style="text-decoration:none">使い方</a>
     </div>
   </aside>
 
@@ -244,7 +290,19 @@
         <button data-tab="about">計算方法</button>
       </nav>
       <div class="tab" id="tab-summary">
-        <div id="empty" class="empty">条件を入力して「予測を実行」を押してください。</div>
+        <div id="empty" class="empty">
+          <p>条件を入力して「予測を実行」を押してください。</p>
+          <section class="intro">
+            <p><strong>SORAYOMI</strong>は、気球・ロケット・ロックーンが<strong>どこまで上がり、どこに落ちるか</strong>を予測する無料のWebツールです。米国GFSの最新の気象予報（地上〜高度31kmの風）を使い、落下地点のばらつきを確率の楕円で表示します。</p>
+            <ul>
+              <li><a href="?mode=balloon">気球</a>：ガス量から上昇速度・破裂高度・落下地点を計算</li>
+              <li><a href="?mode=rocket">ロケット</a>：推力曲線と3Dモデル（STL）から最高高度・落下地点を計算</li>
+              <li><a href="?mode=rockoon">ロックーン</a>：気球で吊り上げて上空で点火する飛行全体を計算</li>
+              <li><a href="?mode=drone">ドローン</a>：飛行高度の風・突風・雨から1時間ごとに飛行可否を判定</li>
+            </ul>
+            <p>詳しい使い方と計算方法は<a href="guide.html">解説ページ</a>をご覧ください。</p>
+          </section>
+        </div>
         <div id="warnings"></div>
         <div id="summary" class="cards"></div>
         <div id="drone-out"></div>
@@ -275,6 +333,7 @@
         </div>
       </div>
       <div class="tab prose" id="tab-about" hidden>
+        <p>使い方や用語の説明は<a href="guide.html" style="color:var(--accent)">解説ページ</a>にまとめています。</p>
         <h3>気象データ</h3>
         <p>米国GFS（0.25°格子）の予報を Open-Meteo 経由で取得します。地表〜高度約31km（10hPa）までの28層の風と等圧面高度を、緯度・経度・時刻・高度の4方向に補間して使います。気温は等圧面の厚さから静力学的に求めるため、密度の計算に必要な値（仮温度）に近くなります。31kmより上は米国標準大気（1976）で外挿し、風は31kmの値を使います。</p>
         <p>まず発射地点の予報で一度計算して飛行範囲を見積もり、その範囲を覆う格子（最大25点）を取り直して再計算します。最後に落下域の詳細な標高（15×15点＋軌跡直下の点）を取得して着地点を決めます。</p>
